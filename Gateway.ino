@@ -15,8 +15,8 @@ unsigned int refreshRate = 200;
 LiquidCrystal lcd(14, 12, 33, 25, 26, 27);
 
 //SSID e PASS del wifi
-#define WIFI_SSID "sexyberna"
-#define WIFI_PASSWORD ""
+#define WIFI_SSID "eir-4927"
+#define WIFI_PASSWORD "89574951881699087854"
 
 //indirizzo e porta del server MQTT
 #define MQTT_HOST "broker.hivemq.com"
@@ -35,7 +35,7 @@ LiquidCrystal lcd(14, 12, 33, 25, 26, 27);
 
 //robe di telegram
 #define BOTtoken "5039029687:AAE1sgr9d_WOaiKACnrFCg6RyBhlpFtysj0"  // your Bot Token (Get from Botfather)
-#define CHAT_ID "364021314"
+#define CHAT_ID "485901444"
 
 WiFiClientSecure clientSec;
 UniversalTelegramBot bot(BOTtoken, clientSec);
@@ -53,7 +53,7 @@ PubSubClient client(espClient);
 byte lampadina[] = {
     B00000,
     B01110,
-    B10001,
+    B10111,
     B10001,
     B10001,
     B01010,
@@ -113,45 +113,23 @@ void connectToWifi() {
   Serial.println(WiFi.localIP());
 }
 
-void setup() {
-  Serial.begin(115200);
-  //pin del bottone come input
-  pinMode(pinButton, INPUT);
-  // Setto il numero di righe e di colonne del display
-  lcd.begin(16, 2);
-  //Messaggio iniziale
-  lcd.print("Welcome...");
-  lcd.setCursor(0, 1);
-  lcd.print("WIFI Thermostat");
-  //creo i caratteri speciali per LCD
-  lcd.createChar(1, termometro);
-  lcd.createChar(2, goccia);
-  lcd.createChar(3, lampadina);
-  //Connessione al wifi
-  connectToWifi();
-  delay(delayAfterOn);
-
-  //connessione a MQTT
-  client.setServer(MQTT_HOST, MQTT_PORT);
-  client.setCallback(callback);
-
-
-  //clear the display
-  lcd.clear();
-  //set display
-  lcd.setCursor(0, 0);
-  lcd.print("Room1  ");
-  lcd.write(1);
-  lcd.print(" ----");
-  lcd.print((char)223);
-  lcd.print("C");
-  lcd.setCursor(0, 1);
-  lcd.write(2);
-  lcd.print(" --%  ");
-  lcd.write(3);
-  lcd.print(" ---Lum");
-  
+/**
+ * Funzione che gestisce il bot telegram
+ */
+void TelegramBotTaskCode(void* param) {
+  for(;;) {
+     if (millis() > lastTimeBotRan + botRequestDelay)  {
+     int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+     while(numNewMessages) {
+       Serial.println("got response");
+       handleNewMessages(numNewMessages);
+       numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+     }
+     lastTimeBotRan = millis();
+    }
+  }
 }
+TaskHandle_t TelegramBotTask;
 
 String temp[2] = {"----", "----"};
 String hum[2] = {"--", "--"};
@@ -245,7 +223,7 @@ void handleNewMessages(int numNewMessages) {
     // Chat id of the requester
     String chat_id = String(bot.messages[i].chat_id);
     if (chat_id != CHAT_ID){
-      bot.sendMessage(chat_id, "Unauthorized user", "");
+      bot.sendMessage(chat_id, "Unauthorized user " + chat_id, "");
       continue;
     }
     
@@ -274,6 +252,42 @@ void handleNewMessages(int numNewMessages) {
   }
 }
 
+bool buttonPressed = false;
+void IRAM_ATTR buttonPressedInterrupt() {
+  buttonPressed = true;
+}
+
+void setup() {
+  Serial.begin(115200);
+  
+  //pin del bottone come input
+  pinMode(pinButton, INPUT_PULLUP);
+  attachInterrupt(pinButton, buttonPressedInterrupt, FALLING);
+  
+  // Setto il numero di righe e di colonne del display
+  lcd.begin(16, 2);
+  //Messaggio iniziale
+  lcd.print("Welcome...");
+  lcd.setCursor(0, 1);
+  lcd.print("WIFI Thermostat");
+  //creo i caratteri speciali per LCD
+  lcd.createChar(1, termometro);
+  lcd.createChar(2, goccia);
+  lcd.createChar(3, lampadina);
+  //Connessione al wifi
+  connectToWifi();
+  delay(delayAfterOn);
+
+  //connessione a MQTT
+  client.setServer(MQTT_HOST, MQTT_PORT);
+  client.setCallback(callback);
+
+  draw(0);
+
+  //Istanziamento del task relativo alla gestione del bot telegram sul secondo core del processore
+  xTaskCreatePinnedToCore(TelegramBotTaskCode, "TelegramBotTask", 10000, NULL, 1, &TelegramBotTask, 1);
+}
+
 int startMillis= 0;
 void loop() {
   if (!client.connected()) {
@@ -284,19 +298,12 @@ void loop() {
   int currentMillis = millis();
   
   if( currentMillis - startMillis >= refreshRate){
-    if( digitalRead(pinButton) ){
+    if(buttonPressed) {
       buttonValue = !buttonValue;
+      buttonPressed = false;
     }
+    
     startMillis = currentMillis;
     draw((int)!buttonValue);
-  }
-  if (millis() > lastTimeBotRan + botRequestDelay)  {
-    int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-    while(numNewMessages) {
-      Serial.println("got response");
-      handleNewMessages(numNewMessages);
-      numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-    }
-    lastTimeBotRan = millis();
   }
 }

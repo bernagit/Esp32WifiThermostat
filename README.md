@@ -1,2 +1,1 @@
-# eleproject
-arduino WIFI thermostat
+# # ESP32 WIFI thermostat with Remote sensor

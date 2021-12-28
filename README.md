@@ -9,7 +9,3 @@ We made this project for an university exam, but also for improve our skill with
 ```
 
 ## How to build it
-
-
-
-

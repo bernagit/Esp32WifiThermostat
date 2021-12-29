@@ -3,38 +3,41 @@
 
 #include <PubSubClient.h>
 #include <DHT.h>
-#define DHT11PIN 23 
+
+#define DHTPIN 23
 #define DHTTYPE DHT11
-#define LUM_PIN A4
 
-DHT dht(DHT11PIN, DHTTYPE);
+int analogPin = 15;
+int tonePin = 5;
 
-const char* ssid = "sexyberna";
+int analogInput = 0;
+float r0 = 10000.0;
+float Vref = 3.3;
+float coeff = -1.25;
+float Resistenza;
+float argLuce;
+float lumen;
 
-const char* password = ""; //WIFI password
-
-const char* mqtt_server = "broker.hivemq.com";
-const int mqtt_port = 1883; //MQTT broker port
+const char* ssid;
+const char* password;
+const char* mqtt_server;
+const int mqtt_port = 1183;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-void setup_wifi() {
+void connect_WiFi() {
 
-  delay(10);
-  // We start by connecting to a WiFi network
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
   WiFi.begin(ssid, password);
 
-  while (WiFi.status() != WL_CONNECTED) {
+  while(WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-
-  randomSeed(micros());
 
   Serial.println("");
   Serial.println("WiFi connected");
@@ -42,69 +45,98 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
+
+void callback(char* topic, byte* payload, int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("]: ");
+
   char message[length];
-  for (int i=0; i< length; i++){
+  for(int i = 0; i < length; i++) {
     message[i] = (char)payload[i];
   }
-  Serial.println(message);
+
+  Serial.print(message);
 }
 
-  void reconnect() {
-    // Loop until we're reconnected
-    while (!client.connected()) {
-      Serial.print("Attempting MQTT connection...");
-      // Create a random client ID
-      String clientId = "esp1-";
-      clientId += String(random(0xffff), HEX);
-      // Attempt to connect
-      if (client.connect(clientId.c_str())) {
-        Serial.println("Connected!");
-       
-      } else {
-        Serial.print("failed, rc=");
-        Serial.print(client.state());
-        Serial.println(" try again in 5 seconds");
-        // Wait 5 seconds before retrying
-        delay(5000);
-      }
+
+void mqtt_connect() {
+  while(!client.connected()) {
+    Serial.print("Attempting MQTT connection ...");
+
+    String clientID = "esp1-";
+    clientID += String(random(0xffff), HEX);
+
+    if(client.connect(clientID.c_str())) {
+      Serial.print(" Connected");
+    } else {
+
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      
+      Serial.print(" try again in 5 seconds...");
+      delay(5000);
     }
   }
+}
+
+
+float volt_to_lumen(int v) {
+  Resistenza = (v * r0)/(v - Vref);
+
+  if(Resistenza <= 0.00) {
+    Resistenza = 100000.0;
+  }
+
+  argLuce = log10((Resistenza/100000.0));
+  argLuce = coeff * argLuce;
+  lumen = pow(10, argLuce);
+
+  return lumen;
+}
+
+
 
 void setup() {
   Serial.begin(115200);
+  pinMode(analogPin, INPUT);
+  pinMode(tonePin, OUTPUT);
+
+  analogInput = analogRead(analogPin);
+  Serial.print("ADC BEGIN= ");
+  Serial.print(analogInput);
+  Serial.println();
+
   dht.begin();
-  
-  setup_wifi();
+  connect_WiFi();
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 }
 
+
 void loop() {
 
-  if (!client.connected()) {
-    reconnect();
+  if(!client.connected()) {
+    mqtt_connect();
   }
-  client.loop();
 
+  client.loop();
   delay(2000);
-  
-  int h = dht.readHumidity();
-  float t = dht.readTemperature();
-  int b = analogRead(LUM_PIN);
-  
-  if (isnan(h) || isnan(t)) {
-    Serial.println(F("Failed to read from DHT sensor!"));
+
+  int humidity = dht.readHumidity();
+  float temperature = dht.readTemperature();
+  analogInput = analogRead(analogPin);
+
+  lumen = volt_to_lumen(analogInput);
+
+  if( isnan(humidity) || isnan(temperature) ) {
+    Serial.print("Failed to read from DHT sensor");
     return;
-  }else{   
-    Serial.print("BRIGHTNESS = ");
-    Serial.println(b);
-    client.publish("esp1/temperature",String(t).c_str());
-    client.publish("esp1/humidity",String(h).c_str());
-    client.publish("esp1/brightness", String(b).c_str());  
+  } else {
+
+    client.publish("aaabbbccc/Room1/temperature", String(temperature).c_str());
+    client.publish("aaabbbccc/Room1/humidity", String(humidity).c_str());
+    client.publish("aaabbbccc/Room1/brightness", String(lumen).c_str());
   }
 
 }

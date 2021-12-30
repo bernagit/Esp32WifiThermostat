@@ -16,7 +16,6 @@ const char* mqtt_server = "broker.hivemq.com";
 const int mqtt_port = 1883; 
 
 int analogPin = 4;
-int tonePin = 5;
 
 int analogInput = 0;
 float Vref = 3.3;
@@ -104,7 +103,7 @@ void setup() {
   
   Serial.begin(115200);
   pinMode(analogPin, INPUT);
-  pinMode(tonePin, OUTPUT);
+  //pinMode(tonePin, OUTPUT);
 
   connect_WiFi();
   client.setServer(mqtt_server, mqtt_port);

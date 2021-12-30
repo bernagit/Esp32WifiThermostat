@@ -8,6 +8,20 @@ Below is a diagram of the complete project.
 
 <img src="./images/chart.png" alt="Project schema">
 
-
-
 ## How to build it
+
+#### Component list
+
+#### Gateway
+
+#### Sensor
+
+## Communication
+
+#### Wifi
+
+#### MQTT
+
+#### Telegram
+
+#### MultiCore

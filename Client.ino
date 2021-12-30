@@ -3,10 +3,13 @@
 
 #include <PubSubClient.h>
 #include <DHT.h>
-#include <ESP32Servo.h>
 
 #define DHTPIN 23
 #define DHTTYPE DHT11
+#define FOTO_PIN 32
+#define VREF_PIN 35
+
+#define r0 10000.0
 
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -15,14 +18,16 @@ const char* password = "16266773";
 const char* mqtt_server = "broker.hivemq.com";
 const int mqtt_port = 1883; 
 
-int analogPin = 4;
 
 int analogInput = 0;
-float Vref = 3.3;
+int vRefInput = 0;
+
+float Volt_FOTO;
+float Volt_VREF;
 float coeff = -1.25;
 float Resistenza;
-float luceArg;
-float lumen;
+float temp;
+int Luce;
 
 
 WiFiClient espClient;
@@ -85,25 +90,47 @@ void mqtt_connect() {
 }
 
 
-float volt_to_lumen(int v) {
-  Resistenza = ((10000.0 * v)/(v - Vref));
+int volt_to_lux(int v1, int v2) {
 
-  if(Resistenza <= 0.00) {
-    Resistenza = 100000.0;
+  Volt_FOTO = 500.0 + (float)(2000*(v1-493))/(2990-493);
+  Serial.print(" ADC = ");
+  Serial.print(v1);
+  Serial.print(" V_FOTO [mV] = ");
+  Serial.print(Volt_FOTO);
+
+  Volt_VREF = 500.0 + (float)(2000*(v2-493))/(2990-493); 
+  Serial.print(" ADC = ");
+  Serial.print(v2);
+  Serial.print(" V_VREF [mV] = ");
+  Serial.print(Volt_VREF);
+
+  temp = Volt_VREF - Volt_FOTO;
+  if (temp <= 0.0) {
+    temp = 0.001; // controllo che il denominatore non sia zero o negativo e saturo a 1mV (livello di rumore)
+  }
+  Resistenza = r0*Volt_FOTO/temp;
+  
+  if (Resistenza >= 999999.0) {
+    Resistenza = 999999.0; // controllo che il monitor non vda in ovf
   }
 
-  luceArg = log10((Resistenza/100000.0));
-  luceArg = coeff * luceArg;
-  lumen = pow(10, luceArg);
+  Serial.print(" Resistenza[Ohm]=");
+  Serial.print(Resistenza);
+ 
+  temp = log10(Resistenza/100000.0);
+  temp = coeff*temp;
+  Luce = (int)pow(10, temp);
 
-  return lumen;
+  return Luce;
+  
+  
 }
 
 void setup() {
   
   Serial.begin(115200);
-  pinMode(analogPin, INPUT);
-  //pinMode(tonePin, OUTPUT);
+  pinMode(FOTO_PIN, INPUT);
+  pinMode(VREF_PIN, INPUT);
 
   connect_WiFi();
   client.setServer(mqtt_server, mqtt_port);
@@ -125,15 +152,14 @@ void loop() {
   
   int humidity = dht.readHumidity();
   float temperature = dht.readTemperature();
-  analogInput = analogRead(analogPin);
-  Serial.print("ADC= ");
-  Serial.print(analogInput);
-  
+  analogInput = analogRead(FOTO_PIN);
+  vRefInput = analogRead(VREF_PIN);
 
-  Serial.print("      Brightness [Lux]= ");
-  lumen = volt_to_lumen(analogInput);
-  Serial.print(lumen);
-  Serial.println();
+  Luce = volt_to_lux(analogInput, vRefInput);
+  Serial.print(" Luce[Lux]=");
+  Serial.print(Luce);
+  Serial.println(" ");
+  delay(1000);
 
 
   if (isnan(humidity) || isnan(temperature)) {
@@ -144,7 +170,7 @@ void loop() {
 
     client.publish("aaabbbccc/Room1/temperature",String(temperature).c_str());
     client.publish("aaabbbccc/Room1/humidity",String(humidity).c_str());
-    client.publish("aaabbbccc/Room1/brightness", String(lumen).c_str());  
+    client.publish("aaabbbccc/Room1/brightness", String(Luce).c_str());  
   }
   
   

@@ -18,13 +18,15 @@ float Resistenza;
 float argLuce;
 float lumen;
 
-const char* ssid;
-const char* password;
-const char* mqtt_server;
+const char* ssid = "sexyberna";
+const char* password = "";
+const char* mqtt_server = "broker.hivemq.com";
 const int mqtt_port = 1183;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+
+DHT dht(DHTPIN, DHTTYPE);
 
 void connect_WiFi() {
 

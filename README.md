@@ -50,7 +50,7 @@ In a real application sensors will publish data on a private MQTT Broker with au
 
 ##### Circuit
 
-<img title="" src="images/electric scheme/Sensor_scheme.png" alt="">
+<img title="" src="images/electric scheme/Sensor_schema.png" alt="">
 
 ## Communication
 

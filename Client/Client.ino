@@ -17,6 +17,7 @@ float Resistenza;
 float temp;
 int Luce;
 
+float setTemp = 0;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -53,6 +54,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 
   Serial.print(message);
+
+  setTemp = String(message).toFloat();
 }
 
 
@@ -111,6 +114,7 @@ void setup() {
   
   Serial.begin(115200);
   pinMode(FOTO_PIN, INPUT);
+  pinMode(LED_PIN, OUTPUT);
 
   connect_WiFi();
   client.setServer(MQTT_HOST, MQTT_PORT);
@@ -131,6 +135,7 @@ void loop() {
  
   if (!client.connected()) {
     mqtt_connect();
+    client.subscribe("aaabbbccc/Room2/setT");
   }
   
   client.loop();
@@ -152,9 +157,12 @@ void loop() {
     client.publish("aaabbbccc/Room2/humidity",String(humidity).c_str());
     client.publish("aaabbbccc/Room2/brightness", String(Luce).c_str());  
   }
-  Serial.println(WiFi.status());
-  WiFi.setSleep(true);
-  //disableWiFi();
-  Serial.println(WiFi.status());
+
+  if(temperature <= setTemp) {
+    digitalWrite(LED_PIN, HIGH);
+  } else {
+    digitalWrite(LED_PIN, LOW);
+  }
+  
   delay(5000);
 }

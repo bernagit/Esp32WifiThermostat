@@ -44,6 +44,12 @@
 #define WARNING_HUM 70
 
 
+//pin dei tasti per il controllo tepmeratura
+#define PINUP 21
+#define PINDOWN 23
+//durata visualizzazione della temperatura settata sul display (in ms)
+#define TIMEVISIBLE 3000
+
 //Simboli del display
 
 byte lampadina[] = {

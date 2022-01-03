@@ -17,6 +17,7 @@ struct Sensor {
   String temperature;
   String humidity;
   String brightness;
+  float setTemp;
 };
 //Lista dove vengono salvati tutti i sensori connessi
 Sensor sensors[MAX_SENSOR_NUM];
@@ -68,10 +69,26 @@ void connectToWifi() {
   Serial.println(WiFi.localIP());
 }
 
+int timeUpDown = 0;
+bool upPressed = false;
+bool downPressed = false;
+void IRAM_ATTR butUpInterrupt(){
+  upPressed = true;
+}
+void IRAM_ATTR butDownInterrupt(){
+  downPressed = true;
+}
 
 bool buttonPressed = false;
 void IRAM_ATTR buttonPressedInterrupt() {
-  buttonPressed = true;
+  if(timeUpDown == 0) {
+    buttonPressed = true; 
+  }
+}
+
+void setTemperature(String sensorName, float temperature) {
+  String topic = "aaabbbccc/" + sensorName + "/setT";
+  client.publish(topic.c_str(), String(temperature).c_str());
 }
 
 int clearSensorList() {
@@ -83,6 +100,10 @@ int clearSensorList() {
     if(now - sensors[i].lastConnection < DELETE_SENSOR_TIME * 1000) {
       newArray[newSize] = sensors[i];
       newSize++;
+
+      //Ai sensori collegati invia la temperatura settata
+      String topic = "aaabbbccc/" + sensors[i].name + "/setT";
+      client.publish(topic.c_str(), String(sensors[i].setTemp).c_str());
     }
   }
 
@@ -163,7 +184,7 @@ void callback(char* topic, byte* message, unsigned int length) {
   String espId = rightTopic.substring(0, secondIndex);
   String param = String(rightTopic).substring(secondIndex + 1);
 
-  Sensor s = {"", 0, "----", "--", "--"};
+  Sensor s = {"", 0, "----", "--", "--", 15.0};
   Sensor *sensor = &s;
   for(int i = 0; i < arraySize; i++) {
     if(sensors[i].name == espId) {
@@ -179,6 +200,8 @@ void callback(char* topic, byte* message, unsigned int length) {
     if(arraySize == 1) {
        selectedIndex = 0;
     }
+
+    setTemperature(espId, 15.0);
   }
 
   sensor->lastConnection = millis();
@@ -202,7 +225,7 @@ void draw() {
     lcd.print("connections     ");
     return;  
   }
-
+  Serial.println(selectedIndex);
   Sensor sensor = sensors[selectedIndex];
   if(sensor.temperature.toFloat() >= WARNING_TEMP) {
     digitalWrite(TEMPERATURE_ALARM_PIN, HIGH);
@@ -363,6 +386,12 @@ void setup() {
   //pin del bottone come input
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   attachInterrupt(BUTTON_PIN, buttonPressedInterrupt, FALLING);
+
+  //setup pin regolazione temperatura
+  pinMode(PINUP, INPUT_PULLUP);
+  pinMode(PINDOWN, INPUT_PULLUP);
+  attachInterrupt(PINUP, butUpInterrupt, FALLING);
+  attachInterrupt(PINDOWN, butDownInterrupt, FALLING);
   
   // Setto il numero di righe e di colonne del display
   lcd.begin(16, 2);
@@ -396,4 +425,37 @@ void loop() {
     connectToMQTTServer();
   }
   client.loop();
+  
+  if(timeUpDown != 0 && millis() - timeUpDown >= TIMEVISIBLE){
+    setTemperature(sensors[selectedIndex].name, sensors[selectedIndex].setTemp);
+    timeUpDown = 0;
+    vTaskResume(DrawTask);
+  }
+  
+  if(upPressed){
+    if(selectedIndex == -1)
+      return;
+    timeUpDown = millis();
+    if(eTaskGetState(DrawTask) != eSuspended){
+      vTaskSuspend(DrawTask);
+    }
+    sensors[selectedIndex].setTemp += 0.5;
+    lcd.clear();
+    lcd.print(sensors[selectedIndex].setTemp);
+    
+    upPressed = false;
+  }
+  if(downPressed){
+    if(selectedIndex == -1)
+      return;
+    timeUpDown = millis();
+    if(eTaskGetState(DrawTask) != eSuspended){
+      vTaskSuspend(DrawTask);
+    }
+    sensors[selectedIndex].setTemp -= 0.5;
+    lcd.clear();
+    lcd.print(sensors[selectedIndex].setTemp);
+    
+    downPressed = false;
+  }
 }

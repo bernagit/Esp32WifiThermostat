@@ -12,6 +12,8 @@
 #define DHTTYPE DHT11
 //pin de sensore fotoelettrico GL55
 #define FOTO_PIN 32
+//pin del led che indica il riscaldamento acceso
+#define LED_PIN 14
 //Ohm resistenza usata per il partitore di tensione
 #define R 10000
 //tensione di alimentazione del partitore

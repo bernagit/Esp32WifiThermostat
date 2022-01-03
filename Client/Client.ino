@@ -13,8 +13,8 @@
 
 DHT dht(DHTPIN, DHTTYPE);
 
-const char* ssid = "Sitecom8110b2";
-const char* password = "16266773";
+const char* ssid = "sexyberna";
+const char* password = "";
 const char* mqtt_server = "broker.hivemq.com";
 const int mqtt_port = 1883; 
 

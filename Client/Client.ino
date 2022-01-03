@@ -109,6 +109,10 @@ int volt_to_lux(int v) {
   temp = -(1/0.72)*temp;
   Luce = (int)pow(10, temp);
 
+  if(Luce > 9999.0) {
+    Luce = 9999.0;
+  }
+
   return Luce;
   
   

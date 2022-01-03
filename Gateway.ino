@@ -16,7 +16,7 @@
 
 //robe di telegram
 #define BOTtoken "5039029687:AAE1sgr9d_WOaiKACnrFCg6RyBhlpFtysj0"  // your Bot Token (Get from Botfather)
-#define CHATS_ID "485901444"
+#define CHATS_ID "485901444|364021314|848220826"
 
 //Numero massimo di sensori collegabili
 #define MAX_SENSOR_NUM 10
@@ -25,6 +25,8 @@
 #define BUTTON_PIN 22
 //Frequenza di aggiornamento dello schermo LCD (in ms)
 #define REFRESH_RATE 200
+//Frequenza di "pulizia" della lista dei sensori per rimuovere quelli non connessi (in s)
+#define CLEAR_SENSOR_LIST_RATE 30
 
 //Pin che accende il led rosso per segnalare l'allarme relativo alla temperatura
 #define TEMPERATURE_ALARM_PIN 16
@@ -145,7 +147,36 @@ void IRAM_ATTR buttonPressedInterrupt() {
   buttonPressed = true;
 }
 
+int clearSensorList() {
+  Sensor newArray[MAX_SENSOR_NUM];
+  int newSize = 0;
+  int now = millis();
+  
+  for(int i = 0; i < arraySize; i++) {
+    if(now - sensors[i].lastConnection < 60000) {
+      newArray[newSize] = sensors[i];
+      newSize++;
+    }
+  }
+
+  if(newSize == 0) {
+    selectedIndex = -1;
+  } else {
+    selectedIndex = 0;
+  }
+
+  int difference = arraySize - newSize;
+  arraySize = newSize;
+
+  for(int i = 0; i < newSize; i++) {
+    sensors[i] = newArray[i];
+  }
+
+  return difference;
+}
+
 int startMillisDrawTask = 0;
+int startMillisClearSensorsList = millis();
 /**
  * Funzione che gestisce la scrittura sul display LCD
  */
@@ -154,7 +185,7 @@ void DrawTaskCode(void* param) {
     delay(1);
     int currentMillis = millis();
   
-    if( currentMillis - startMillisDrawTask >= REFRESH_RATE){
+    if(currentMillis - startMillisDrawTask >= REFRESH_RATE){
       if(buttonPressed && selectedIndex != -1) {
         buttonPressed = false;
         selectedIndex = (selectedIndex + 1) % arraySize;
@@ -162,6 +193,24 @@ void DrawTaskCode(void* param) {
     
       startMillisDrawTask = currentMillis;
       draw();
+    }
+
+    if(currentMillis - startMillisClearSensorsList >= CLEAR_SENSOR_LIST_RATE * 1000) {
+      client.unsubscribe("aaabbbccc/#");
+      
+      int deleted = clearSensorList();
+      if(deleted > 0) {
+        lcd.clear();
+        lcd.home();
+        lcd.print("Deleted ");
+        lcd.print(deleted);
+        lcd.setCursor(0, 1);
+        lcd.print("sensors");
+        delay(3000);
+      }
+
+      client.subscribe("aaabbbccc/#");
+      startMillisClearSensorsList = currentMillis;
     }
   }
 }
@@ -185,7 +234,7 @@ void callback(char* topic, byte* message, unsigned int length) {
   String espId = rightTopic.substring(0, secondIndex);
   String param = String(rightTopic).substring(secondIndex + 1);
 
-  Sensor s = {"", 0, "----", "--", "---"};
+  Sensor s = {"", 0, "----", "--", "--"};
   Sensor *sensor = &s;
   for(int i = 0; i < arraySize; i++) {
     if(sensors[i].name == espId) {
@@ -251,7 +300,7 @@ void draw() {
 
   lcd.setCursor(6, 1);
   lcd.write(3);
-  lcd.print(" " + sensor.brightness + "Lum ");
+  lcd.print(" " + sensor.brightness + " lux ");
 
   /**
    * Se il sensore non si connette da più di 30 secondi, viene segnalato tramite
@@ -364,7 +413,7 @@ void handleNewMessages(int numNewMessages) {
       sensorInfo = "Data of " + sensorName + "\n";
       sensorInfo += "Temperature: " + sensor.temperature + "°C\n";
       sensorInfo += "Humidity: " + sensor.humidity + "%\n";
-      sensorInfo += "Brightness: " + sensor.brightness + "Lum\n";
+      sensorInfo += "Brightness: " + sensor.brightness + "lux\n";
     }
 
     bot.sendMessage(chat_id, sensorInfo, "");

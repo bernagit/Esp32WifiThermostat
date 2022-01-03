@@ -5,33 +5,7 @@
 #include <WiFiClientSecure.h>
 #include <LiquidCrystal.h>
 #include <PubSubClient.h>
-
-//SSID e PASS del wifi
-#define WIFI_SSID "eir-4927"
-#define WIFI_PASSWORD "89574951881699087854"
-
-//indirizzo e porta del server MQTT
-#define MQTT_HOST "broker.hivemq.com"
-#define MQTT_PORT 1883
-
-//robe di telegram
-#define BOTtoken "5039029687:AAE1sgr9d_WOaiKACnrFCg6RyBhlpFtysj0"  // your Bot Token (Get from Botfather)
-#define CHATS_ID "485901444|364021314|848220826"
-
-//Numero massimo di sensori collegabili
-#define MAX_SENSOR_NUM 10
-
-//Pin sul quale è "collegato" il bottone
-#define BUTTON_PIN 22
-//Frequenza di aggiornamento dello schermo LCD (in ms)
-#define REFRESH_RATE 200
-//Frequenza di "pulizia" della lista dei sensori per rimuovere quelli non connessi (in s)
-#define CLEAR_SENSOR_LIST_RATE 30
-
-//Pin che accende il led rosso per segnalare l'allarme relativo alla temperatura
-#define TEMPERATURE_ALARM_PIN 16
-//Pin che accende il led verde per segnalare l'allarme relativo all'umidità
-#define HUMIDITY_ALARM_PIN 17
+#include "Gateway.h"
 
 /**
  * Struttura nella quale vengono salvati i dati relativi ad ogni
@@ -65,58 +39,11 @@ LiquidCrystal lcd(14, 12, 33, 25, 26, 27);
 WiFiClientSecure clientSec;
 UniversalTelegramBot bot(BOTtoken, clientSec);
 
-int botRequestDelay = 1000;
 unsigned long lastTimeBotRan;
 
 //robe di MQTT
 WiFiClient espClient;
 PubSubClient client(espClient);
-
-//robe del display
-
-byte lampadina[] = {
-  B00000,
-  B01110,
-  B10111,
-  B10001,
-  B10001,
-  B01010,
-  B01110,
-  B00100
-};
-byte termometro[8] = {
-  B00100,
-  B01010,
-  B01010,
-  B01110,
-  B01110,
-  B11111,
-  B11111,
-  B01110
-};
-byte goccia[8] = {
-  B00100,
-  B00100,
-  B01010,
-  B01010,
-  B10001,
-  B10001,
-  B10001,
-  B01110,
-};
-byte warning[8] = {
-  B01110,
-  B10001,
-  B10101,
-  B10101,
-  B10001,
-  B10101,
-  B10001,
-  B01110,
-};
-//delay for some refresh 
-int delayAfterOn = 100;
-
 
 void connectToWifi() {
   Serial.println("");
@@ -131,7 +58,7 @@ void connectToWifi() {
   #endif
   
   while (WiFi.status() != WL_CONNECTED) {
-    delay(100);
+    delay(DELAY_WIFI_TRY);
     Serial.print(".");  
   }
 
@@ -153,7 +80,7 @@ int clearSensorList() {
   int now = millis();
   
   for(int i = 0; i < arraySize; i++) {
-    if(now - sensors[i].lastConnection < 60000) {
+    if(now - sensors[i].lastConnection < DELETE_SENSOR_TIME * 1000) {
       newArray[newSize] = sensors[i];
       newSize++;
     }
@@ -182,7 +109,7 @@ int startMillisClearSensorsList = millis();
  */
 void DrawTaskCode(void* param) {
   for(;;) {
-    delay(1);
+    delay(DELAY_WATCHDOG_RESET);
     int currentMillis = millis();
   
     if(currentMillis - startMillisDrawTask >= REFRESH_RATE){
@@ -206,7 +133,9 @@ void DrawTaskCode(void* param) {
         lcd.print(deleted);
         lcd.setCursor(0, 1);
         lcd.print("sensors");
-        delay(3000);
+        digitalWrite(HUMIDITY_ALARM_PIN, LOW);
+        digitalWrite(TEMPERATURE_ALARM_PIN, LOW);
+        delay(DELAY_AFTER_REMOVED_SENSOR);
       }
 
       client.subscribe("aaabbbccc/#");
@@ -275,13 +204,13 @@ void draw() {
   }
 
   Sensor sensor = sensors[selectedIndex];
-  if(sensor.temperature.toFloat() >= 22) {
+  if(sensor.temperature.toFloat() >= WARNING_TEMP) {
     digitalWrite(TEMPERATURE_ALARM_PIN, HIGH);
   } else {
     digitalWrite(TEMPERATURE_ALARM_PIN, LOW);
   }
 
-  if(sensor.humidity.toFloat() >= 65) {
+  if(sensor.humidity.toFloat() >= WARNING_HUM) {
     digitalWrite(HUMIDITY_ALARM_PIN, HIGH);
   } else {
     digitalWrite(HUMIDITY_ALARM_PIN, LOW);
@@ -309,7 +238,7 @@ void draw() {
    * vada eliminata
    */
   lcd.setCursor(15, 0);
-  if(millis() - sensor.lastConnection > 30 * 1000) {
+  if(millis() - sensor.lastConnection > DELAY_SENSOR_WARNING * 1000) {
     lcd.write(4);
   } else {
     lcd.print(" ");
@@ -331,7 +260,7 @@ void connectToMQTTServer() {
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
 
-      delay(1000);
+      delay(DELAY_AFTER_SETUP);
     }
   }
 }
@@ -341,8 +270,8 @@ void connectToMQTTServer() {
  */
 void TelegramBotTaskCode(void* param) {
   for(;;) {
-    delay(1);
-    if (millis() > lastTimeBotRan + botRequestDelay)  {
+    delay(DELAY_WATCHDOG_RESET);
+    if (millis() > lastTimeBotRan + BOT_DELAY_REFRESH)  {
       int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
       while(numNewMessages) {
         Serial.println("got response");
@@ -448,7 +377,7 @@ void setup() {
   lcd.createChar(4, warning);
   //Connessione al wifi
   connectToWifi();
-  delay(delayAfterOn);
+  delay(DELAY_AFTER_SETUP);
 
   //connessione a MQTT
   client.setServer(MQTT_HOST, MQTT_PORT);

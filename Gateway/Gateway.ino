@@ -261,7 +261,10 @@ void draw() {
    * vada eliminata
    */
   lcd.setCursor(15, 0);
-  if(millis() - sensor.lastConnection > DELAY_SENSOR_WARNING * 1000) {
+  if(sensor.temperature.toFloat() < sensor.setTemp ){
+    lcd.write(5);
+  }
+  else if(millis() - sensor.lastConnection > DELAY_SENSOR_WARNING * 1000) {
     lcd.write(4);
   } else {
     lcd.print(" ");
@@ -404,6 +407,7 @@ void setup() {
   lcd.createChar(2, goccia);
   lcd.createChar(3, lampadina);
   lcd.createChar(4, warning);
+  lcd.createChar(5, fuego);
   //Connessione al wifi
   connectToWifi();
   delay(DELAY_AFTER_SETUP);
@@ -441,8 +445,11 @@ void loop() {
     }
     sensors[selectedIndex].setTemp += 0.5;
     lcd.clear();
+    lcd.print("Imposto temp a:");
+    lcd.setCursor(1, 1);
     lcd.print(sensors[selectedIndex].setTemp);
-    
+    lcd.print((char)223);
+    lcd.print("C");
     upPressed = false;
   }
   if(downPressed){
@@ -454,7 +461,11 @@ void loop() {
     }
     sensors[selectedIndex].setTemp -= 0.5;
     lcd.clear();
+    lcd.print("Imposto temp a:");
+    lcd.setCursor(1, 1);
     lcd.print(sensors[selectedIndex].setTemp);
+    lcd.print((char)223);
+    lcd.print("C");
     
     downPressed = false;
   }

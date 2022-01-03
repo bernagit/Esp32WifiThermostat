@@ -3,21 +3,10 @@
 
 #include <PubSubClient.h>
 #include <DHT.h>
-
-#define DHTPIN 23
-#define DHTTYPE DHT11
-#define FOTO_PIN 32
-
-#define R 10000
-#define VREF 3300
+#include "Client.h"
+#include "driver/adc.h"
 
 DHT dht(DHTPIN, DHTTYPE);
-
-const char* ssid = "sexyberna";
-const char* password = "";
-const char* mqtt_server = "broker.hivemq.com";
-const int mqtt_port = 1883; 
-
 
 int analogInput = 0;
 int vRefInput = 0;
@@ -36,11 +25,11 @@ void connect_WiFi() {
 
   Serial.println();
   Serial.print("Connecting to ");
-  Serial.println(ssid);
+  Serial.println(WIFI_SSID);
 
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while(WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    delay(DELAY_WIFI_TRY);
     Serial.print(".");
   }
 
@@ -83,7 +72,7 @@ void mqtt_connect() {
       Serial.print("failed, rc=");
         Serial.print(client.state());
         Serial.println(" try again in 5 seconds");
-        delay(5000);
+        delay(DELAY_AFTER_SETUP);
     }
   }
 }
@@ -124,22 +113,27 @@ void setup() {
   pinMode(FOTO_PIN, INPUT);
 
   connect_WiFi();
-  client.setServer(mqtt_server, mqtt_port);
+  client.setServer(MQTT_HOST, MQTT_PORT);
   client.setCallback(callback);
 
   dht.begin();
 }
 
+void disableWiFi(){
+    adc_power_off();
+    WiFi.disconnect(true);  // Disconnect from the network
+    WiFi.mode(WIFI_OFF);    // Switch WiFi off
+    Serial2.println("");
+    Serial2.println("WiFi disconnected!");
+}
+
 void loop() {
  
-
   if (!client.connected()) {
     mqtt_connect();
   }
   
   client.loop();
-  delay(2000);
-  
   
   int humidity = dht.readHumidity();
   float temperature = dht.readTemperature();
@@ -149,19 +143,18 @@ void loop() {
   Serial.print(" Luce[Lux]=");
   Serial.print(Luce);
   Serial.println(" ");
-  delay(1000);
-
 
   if (isnan(humidity) || isnan(temperature)) {
     Serial.println(F("Failed to read from DHT sensor!"));
     return;
   }else{  
-    delay(500);
-
-    client.publish("aaabbbccc/Room1/temperature",String(temperature).c_str());
-    client.publish("aaabbbccc/Room1/humidity",String(humidity).c_str());
-    client.publish("aaabbbccc/Room1/brightness", String(Luce).c_str());  
+    client.publish("aaabbbccc/Room2/temperature",String(temperature).c_str());
+    client.publish("aaabbbccc/Room2/humidity",String(humidity).c_str());
+    client.publish("aaabbbccc/Room2/brightness", String(Luce).c_str());  
   }
-  
-  
+  Serial.println(WiFi.status());
+  WiFi.setSleep(true);
+  //disableWiFi();
+  Serial.println(WiFi.status());
+  delay(5000);
 }

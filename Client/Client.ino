@@ -7,9 +7,9 @@
 #define DHTPIN 23
 #define DHTTYPE DHT11
 #define FOTO_PIN 32
-#define VREF_PIN 35
 
-#define r0 10000.0
+#define R 10000
+#define VREF 3300
 
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -24,7 +24,6 @@ int vRefInput = 0;
 
 float Volt_FOTO;
 float Volt_VREF;
-float coeff = -1.25;
 float Resistenza;
 float temp;
 int Luce;
@@ -90,26 +89,15 @@ void mqtt_connect() {
 }
 
 
-int volt_to_lux(int v1, int v2) {
+int volt_to_lux(int v) {
 
-  Volt_FOTO = 500.0 + (float)(2000*(v1-493))/(2990-493);
+  Volt_FOTO = float(v) * (VREF / float(4095));
   Serial.print(" ADC = ");
-  Serial.print(v1);
+  Serial.print(v);
   Serial.print(" V_FOTO [mV] = ");
   Serial.print(Volt_FOTO);
 
-  Volt_VREF = 500.0 + (float)(2000*(v2-493))/(2990-493); 
-  Serial.print(" ADC = ");
-  Serial.print(v2);
-  Serial.print(" V_VREF [mV] = ");
-  Serial.print(Volt_VREF);
-
-  temp = Volt_VREF - Volt_FOTO;
-  if (temp <= 0.0) {
-    temp = 0.001; // controllo che il denominatore non sia zero o negativo e saturo a 1mV (livello di rumore)
-  }
-  Resistenza = r0*Volt_FOTO/temp;
-  
+  Resistenza = R * Volt_FOTO / (VREF - Volt_FOTO);
   if (Resistenza >= 999999.0) {
     Resistenza = 999999.0; // controllo che il monitor non vda in ovf
   }
@@ -118,7 +106,7 @@ int volt_to_lux(int v1, int v2) {
   Serial.print(Resistenza);
  
   temp = log10(Resistenza/100000.0);
-  temp = coeff*temp;
+  temp = -(1/0.72)*temp;
   Luce = (int)pow(10, temp);
 
   return Luce;
@@ -130,7 +118,6 @@ void setup() {
   
   Serial.begin(115200);
   pinMode(FOTO_PIN, INPUT);
-  pinMode(VREF_PIN, INPUT);
 
   connect_WiFi();
   client.setServer(mqtt_server, mqtt_port);
@@ -153,9 +140,8 @@ void loop() {
   int humidity = dht.readHumidity();
   float temperature = dht.readTemperature();
   analogInput = analogRead(FOTO_PIN);
-  vRefInput = analogRead(VREF_PIN);
 
-  Luce = volt_to_lux(analogInput, vRefInput);
+  Luce = volt_to_lux(analogInput);
   Serial.print(" Luce[Lux]=");
   Serial.print(Luce);
   Serial.println(" ");

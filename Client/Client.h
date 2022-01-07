@@ -1,5 +1,5 @@
 //SSID e PASS del wifi
-#define WIFI_SSID "sexyberna"
+#define WIFI_SSID ""
 #define WIFI_PASSWORD ""
 
 //indirizzo e porta del server MQTT
@@ -13,7 +13,7 @@
 //pin de sensore fotoelettrico GL55
 #define FOTO_PIN 32
 //pin del led che indica il riscaldamento acceso
-#define LED_PIN 14
+#define LED_PIN 5
 //Ohm resistenza usata per il partitore di tensione
 #define R 10000
 //tensione di alimentazione del partitore
@@ -22,3 +22,5 @@
 #define DELAY_WIFI_TRY 100
 //Tempo di attesa dopo essersi collegati al server MQTT 
 #define DELAY_AFTER_SETUP 1000
+//Intervallo di invio dei dati al server MQTT
+#define SEND_TIME 7000

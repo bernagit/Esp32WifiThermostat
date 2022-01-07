@@ -1,21 +1,19 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
-
 #include <PubSubClient.h>
 #include <DHT.h>
 #include "Client.h"
-#include "driver/adc.h"
+#include "esp_wifi.h"
 
 DHT dht(DHTPIN, DHTTYPE);
 
 int analogInput = 0;
 int vRefInput = 0;
-
 float Volt_FOTO;
 float Volt_VREF;
 float Resistenza;
 float temp;
-int Luce;
+int luce;
 
 float setTemp = 0;
 
@@ -58,10 +56,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   setTemp = String(message).toFloat();
 }
 
-
-
-void mqtt_connect() {
-
+bool mqtt_connect() {
   while(!client.connected()) {
     Serial.print("Attempting MQTT connection...");
 
@@ -70,8 +65,8 @@ void mqtt_connect() {
 
     if(client.connect(clientID.c_str())) {
       Serial.println("Connected to MQTT broker!");
+      
     } else {
-
       Serial.print("failed, rc=");
         Serial.print(client.state());
         Serial.println(" try again in 5 seconds");
@@ -80,9 +75,20 @@ void mqtt_connect() {
   }
 }
 
+void setWiFiPowerSavingMode(){
+    //funzione che rallenta la frequenza di arrivo dei messaggi Beacon dall'access point a cui è collegato
+    //Minimum modem power saving. In this mode, station wakes up to receive beacon every DTIM period (DOCUM UFF ESPRESSIF)
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+}
+
+void setCpuFrequency(int freq){
+  setCpuFrequencyMhz(freq);
+ 
+  Serial.print("CPU Freq: ");
+  Serial.println(getCpuFrequencyMhz());
+}
 
 int volt_to_lux(int v) {
-
   Volt_FOTO = float(v) * (VREF / float(4095));
   Serial.print(" ADC = ");
   Serial.print(v);
@@ -91,7 +97,7 @@ int volt_to_lux(int v) {
 
   Resistenza = R * Volt_FOTO / (VREF - Volt_FOTO);
   if (Resistenza >= 999999.0) {
-    Resistenza = 999999.0; // controllo che il monitor non vda in ovf
+    Resistenza = 999999.0; 
   }
 
   Serial.print(" Resistenza[Ohm]=");
@@ -99,43 +105,37 @@ int volt_to_lux(int v) {
  
   temp = log10(Resistenza/100000.0);
   temp = -(1/0.72)*temp;
-  Luce = (int)pow(10, temp);
+  luce = (int)pow(10, temp);
 
-  if(Luce > 9999.0) {
-    Luce = 9999.0;
+  if(luce > 9999.0) {
+    luce = 9999.0;
   }
-
-  return Luce;
-  
-  
+  return luce;  
 }
 
 void setup() {
-  
   Serial.begin(115200);
+  
   pinMode(FOTO_PIN, INPUT);
   pinMode(LED_PIN, OUTPUT);
-
+  
   connect_WiFi();
   client.setServer(MQTT_HOST, MQTT_PORT);
   client.setCallback(callback);
 
+  //funzioni per il risparmio energetico
+  setCpuFrequency(80);  //abbasso la velocità del clock da 240MHz a 80MHz
+  setWiFiPowerSavingMode();
+  
   dht.begin();
-}
-
-void disableWiFi(){
-    adc_power_off();
-    WiFi.disconnect(true);  // Disconnect from the network
-    WiFi.mode(WIFI_OFF);    // Switch WiFi off
-    Serial2.println("");
-    Serial2.println("WiFi disconnected!");
+  
 }
 
 void loop() {
  
   if (!client.connected()) {
     mqtt_connect();
-    client.subscribe("aaabbbccc/Room2/setT");
+    client.subscribe("progEle/Room2/setT");
   }
   
   client.loop();
@@ -144,18 +144,18 @@ void loop() {
   float temperature = dht.readTemperature();
   analogInput = analogRead(FOTO_PIN);
 
-  Luce = volt_to_lux(analogInput);
+  luce = volt_to_lux(analogInput);
   Serial.print(" Luce[Lux]=");
-  Serial.print(Luce);
+  Serial.print(luce);
   Serial.println(" ");
 
   if (isnan(humidity) || isnan(temperature)) {
-    Serial.println(F("Failed to read from DHT sensor!"));
+    Serial.println(F("Lettura da DHT fallita!"));
     return;
   }else{  
-    client.publish("aaabbbccc/Room2/temperature",String(temperature).c_str());
-    client.publish("aaabbbccc/Room2/humidity",String(humidity).c_str());
-    client.publish("aaabbbccc/Room2/brightness", String(Luce).c_str());  
+    client.publish("progEle/Room2/temperature",String(temperature).c_str());
+    client.publish("progEle/Room2/humidity",String(humidity).c_str());
+    client.publish("progEle/Room2/brightness", String(luce).c_str());  
   }
 
   if(temperature <= setTemp) {
@@ -164,5 +164,5 @@ void loop() {
     digitalWrite(LED_PIN, LOW);
   }
   
-  delay(5000);
+  delay(SEND_TIME);
 }

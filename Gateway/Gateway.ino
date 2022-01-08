@@ -37,15 +37,17 @@ int arraySize = 0;
 //inizializzazione del display
 LiquidCrystal lcd(14, 12, 33, 25, 26, 27);
 
+//inizializzazione oggetti per Telegram
 WiFiClientSecure clientSec;
 UniversalTelegramBot bot(BOTtoken, clientSec);
 
 unsigned long lastTimeBotRan;
 
-//robe di MQTT
+//inizializzazione oggetti per MQTT
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+//funzione per la connessione al WIFI
 void connectToWifi() {
   Serial.println("");
   Serial.print("Connecting to ");
@@ -55,7 +57,7 @@ void connectToWifi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   #ifdef ESP32
-    clientSec.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+    clientSec.setCACert(TELEGRAM_CERTIFICATE_ROOT); // set del certificato root per api.telegram.org
   #endif
   
   while (WiFi.status() != WL_CONNECTED) {
@@ -68,10 +70,11 @@ void connectToWifi() {
   Serial.println("Indirizzo IP: ");
   Serial.println(WiFi.localIP());
 }
-
+//interrupt per i tasti regolazione temperatura
 int timeUpDown = 0;
 bool upPressed = false;
 bool downPressed = false;
+
 void IRAM_ATTR butUpInterrupt(){
   upPressed = true;
 }
@@ -79,6 +82,7 @@ void IRAM_ATTR butDownInterrupt(){
   downPressed = true;
 }
 
+//interrupt per il tasto che cambia schermata
 bool buttonPressed = false;
 void IRAM_ATTR buttonPressedInterrupt() {
   if(timeUpDown == 0) {
@@ -87,7 +91,7 @@ void IRAM_ATTR buttonPressedInterrupt() {
 }
 
 void setTemperature(String sensorName, float temperature) {
-  String topic = "aaabbbccc/" + sensorName + "/setT";
+  String topic = "progettoEle/" + sensorName + "/setT";
   client.publish(topic.c_str(), String(temperature).c_str());
 }
 
@@ -102,7 +106,7 @@ int clearSensorList() {
       newSize++;
 
       //Ai sensori collegati invia la temperatura settata
-      String topic = "aaabbbccc/" + sensors[i].name + "/setT";
+      String topic = "progettoEle/" + sensors[i].name + "/setT";
       client.publish(topic.c_str(), String(sensors[i].setTemp).c_str());
     }
   }
@@ -144,7 +148,7 @@ void DrawTaskCode(void* param) {
     }
 
     if(currentMillis - startMillisClearSensorsList >= CLEAR_SENSOR_LIST_RATE * 1000) {
-      client.unsubscribe("aaabbbccc/#");
+      client.unsubscribe("progettoEle/#");
       
       int deleted = clearSensorList();
       if(deleted > 0) {
@@ -159,7 +163,7 @@ void DrawTaskCode(void* param) {
         delay(DELAY_AFTER_REMOVED_SENSOR);
       }
 
-      client.subscribe("aaabbbccc/#");
+      client.subscribe("progettoEle/#");
       startMillisClearSensorsList = currentMillis;
     }
   }
@@ -206,6 +210,7 @@ void callback(char* topic, byte* message, unsigned int length) {
 
   sensor->lastConnection = millis();
   if(param == "temperature") {
+    //tronco il valore di temperatura a 3 caratteri per la visualizzazione su display
     messageTemp.remove(4);
     sensor->temperature = messageTemp;
   }
@@ -270,7 +275,7 @@ void draw() {
     lcd.print(" ");
   }
 }
-
+//funzione per la connessione al server MQTT
 void connectToMQTTServer() {
   //Cicla fino a che non si connette
   while (!client.connected()) {
@@ -279,7 +284,7 @@ void connectToMQTTServer() {
     if (client.connect("ESP_GATEWAY")) {
       Serial.println("connected");
       //Se la connessiona va a buon fine, si fa la subscribe al topic
-      client.subscribe("aaabbbccc/#");
+      client.subscribe("progettoEle/#");
     } else {
       //Se la connessione non va a buon fine, si scrivono le informazioni di errore e si riprova dopo 1 secondo
       Serial.print("failed, rc=");
@@ -309,7 +314,7 @@ void TelegramBotTaskCode(void* param) {
   }
 }
 TaskHandle_t TelegramBotTask;
-
+//funzione che si occupa della ricezione dei messaggi e della risposta
 void handleNewMessages(int numNewMessages) {
   Serial.println("handleNewMessages");
   Serial.println(String(numNewMessages));
@@ -429,13 +434,13 @@ void loop() {
     connectToMQTTServer();
   }
   client.loop();
-  
+  //invio il messaggio sulla temperatura settata localmente
   if(timeUpDown != 0 && millis() - timeUpDown >= TIMEVISIBLE){
     setTemperature(sensors[selectedIndex].name, sensors[selectedIndex].setTemp);
     timeUpDown = 0;
     vTaskResume(DrawTask);
   }
-  
+  //gestione temperatura del riscaldamento tramite i 2 tasti
   if(upPressed){
     if(selectedIndex == -1)
       return;

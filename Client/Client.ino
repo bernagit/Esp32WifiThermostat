@@ -135,7 +135,7 @@ void loop() {
  
   if (!client.connected()) {
     mqtt_connect();
-    client.subscribe("progEle/Room2/setT");
+    client.subscribe("progettoEle/Room2/setT");
   }
   
   client.loop();
@@ -153,9 +153,9 @@ void loop() {
     Serial.println(F("Lettura da DHT fallita!"));
     return;
   }else{  
-    client.publish("progEle/Room2/temperature",String(temperature).c_str());
-    client.publish("progEle/Room2/humidity",String(humidity).c_str());
-    client.publish("progEle/Room2/brightness", String(luce).c_str());  
+    client.publish("progettoEle/Room2/temperature",String(temperature).c_str());
+    client.publish("progettoEle/Room2/humidity",String(humidity).c_str());
+    client.publish("progettoEle/Room2/brightness", String(luce).c_str());
   }
 
   if(temperature <= setTemp) {

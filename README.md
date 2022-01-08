@@ -4,7 +4,7 @@
 
 We made this project for an university exam, but also for improve our skill with microcontrollers, arduino and electonic in general. We started with the idea of creating a thermometer that can be viewed via telegram bot and during the implementation we decided to add some functionalities. Use of MQTT IOT protocol, photoresistor to measure brightness, use of multiple sensors, connectable from different WiFi networks, and display the information locally with a LCD.
 
-<img src="./images/chart.png" alt="Project schema">
+<img title="" src="./Files/Images/chart.png" alt="Project schema">
 
 ### <span style="color:red">Security Disclaimer</span>
 
@@ -24,15 +24,17 @@ In a real application sensors will publish data on a private MQTT Broker with au
 
 - 1x 10KΩ Trimmer
 
-- 1x Button
+- 3x Button
 
-- 1x 10KΩ Resistor
+- 3x 10KΩ Resistor
+
+- 2x LED (different color)
 
 - Wire
 
 ##### Circuit
 
-<img title="" src="images/electric scheme/Core_schema.png" alt="">
+<img title="" src="./Files/Images/electric scheme/Core_schema.png" alt="">
 
 #### Sensor
 
@@ -46,11 +48,15 @@ In a real application sensors will publish data on a private MQTT Broker with au
 
 - 1x Photoresistor GL55
 
+- 1x LED (or relay)
+
+- 
+
 - Wire
 
 ##### Circuit
 
-<img title="" src="images/electric scheme/Sensor_schema.png" alt="">
+<img title="" src="./Files/Images/electric scheme/Sensor_schema.png" alt="">
 
 ## Communication
 

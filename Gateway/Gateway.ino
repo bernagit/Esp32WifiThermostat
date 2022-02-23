@@ -259,16 +259,17 @@ void draw() {
   lcd.write(3);
   lcd.print(" " + sensor.brightness + " lux ");
 
+  
+  lcd.setCursor(15, 0);
+  if(sensor.temperature.toFloat() < sensor.setTemp ){
+    lcd.write(5);
+  }
   /**
    * Se il sensore non si connette da più di 30 secondi, viene segnalato tramite
    * un'icona nell'angolo in alto a destra del display
    * Nel ramo else viene scritto uno spazio bianco per "pulire" nel caso l'icona
    * vada eliminata
    */
-  lcd.setCursor(15, 0);
-  if(sensor.temperature.toFloat() < sensor.setTemp ){
-    lcd.write(5);
-  }
   else if(millis() - sensor.lastConnection > DELAY_SENSOR_WARNING * 1000) {
     lcd.write(4);
   } else {

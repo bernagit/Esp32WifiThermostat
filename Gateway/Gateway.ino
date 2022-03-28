@@ -180,7 +180,6 @@ void callback(char* topic, byte* message, unsigned int length) {
     Serial.print((char)message[i]);
     messageTemp += (char)message[i];
   }
-  Serial.println();
 
   int firstIndex = String(topic).indexOf('/');
   String rightTopic = String(topic).substring(firstIndex + 1);

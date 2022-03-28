@@ -1,6 +1,6 @@
 //SSID e PASS del wifi
-#define WIFI_SSID "Telecom-33486489"
-#define WIFI_PASSWORD "bernocchi-2016"
+#define WIFI_SSID "sexyberna"
+#define WIFI_PASSWORD ""
 
 //indirizzo e porta del server MQTT
 #define MQTT_HOST "broker.hivemq.com"

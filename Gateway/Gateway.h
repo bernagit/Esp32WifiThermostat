@@ -1,5 +1,5 @@
 //SSID e PASS del wifi
-#define WIFI_SSID ""
+#define WIFI_SSID "sexyberna"
 #define WIFI_PASSWORD ""
 
 //indirizzo e porta del server MQTT

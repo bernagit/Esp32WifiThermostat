@@ -125,7 +125,7 @@ void setup() {
   client.setCallback(callback);
 
   //funzioni per il risparmio energetico
-  setCpuFrequency(80);  //abbasso la velocità del clock da 240MHz a 80MHz
+  setCpuFrequency(240);  //abbasso la velocità del clock da 240MHz a 80MHz
   setWiFiPowerSavingMode();
   
   dht.begin();
@@ -136,7 +136,7 @@ void loop() {
  
   if (!client.connected()) {
     mqtt_connect();
-    client.subscribe("progettoEle/Room2/setT");
+    client.subscribe("progettoEle/Room1/setT");
   }
   
   client.loop();
@@ -154,9 +154,9 @@ void loop() {
     Serial.println(F("Lettura da DHT fallita!"));
     return;
   }else{  
-    client.publish("progettoEle/Room2/temperature",String(temperature).c_str());
-    client.publish("progettoEle/Room2/humidity",String(humidity).c_str());
-    client.publish("progettoEle/Room2/brightness", String(luce).c_str());
+    client.publish("progettoEle/Room1/temperature",String(temperature).c_str());
+    client.publish("progettoEle/Room1/humidity",String(humidity).c_str());
+    client.publish("progettoEle/Room1/brightness", String(luce).c_str());
   }
 
   if(temperature <= setTemp) {
